@@ -1,0 +1,518 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pod Predictions Dashboard</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .header {
+            background: white;
+            padding: 25px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            margin-bottom: 25px;
+        }
+
+        h1 {
+            color: #667eea;
+            font-size: 32px;
+            margin-bottom: 20px;
+        }
+
+        .filters-container {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 25px;
+            align-items: flex-end;
+        }
+
+        .filter-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .pod-selector {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .date-filter {
+            display: flex;
+            gap: 15px;
+            align-items: flex-end;
+        }
+
+        .date-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #333;
+            font-size: 16px;
+        }
+
+        select {
+            padding: 10px 20px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+            min-width: 200px;
+        }
+
+        select:hover {
+            border-color: #764ba2;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        input[type="date"] {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        input[type="date"]:hover {
+            border-color: #764ba2;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        input[type="time"] {
+            padding: 10px 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+            cursor: pointer;
+            background: white;
+            transition: all 0.3s ease;
+        }
+
+        input[type="time"]:hover {
+            border-color: #764ba2;
+            box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
+        }
+
+        .filter-button {
+            padding: 10px 25px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .filter-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .filter-button:active {
+            transform: translateY(0);
+        }
+
+        .charts-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+
+        .chart-container {
+            background: white;
+            padding: 35px;
+            border-radius: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+            transition: transform 0.3s ease;
+            width: 100%;
+        }
+
+        .chart-container:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0, 0, 0, 0.3);
+        }
+
+        .chart-title {
+            font-size: 24px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 25px;
+            text-align: center;
+        }
+
+        canvas {
+            height: 400px !important;
+        }
+
+        .chart-wrapper {
+            position: relative;
+            height: 400px;
+            width: 100%;
+        }
+
+        .loading {
+            text-align: center;
+            color: white;
+            font-size: 24px;
+            padding: 50px;
+        }
+
+        .pod-info {
+            background: rgba(102, 126, 234, 0.1);
+            padding: 10px 15px;
+            border-radius: 8px;
+            font-size: 14px;
+            color: #333;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div class="header">
+        <h1>📊 Pod Prediction Dashboard</h1>
+        <div class="filters-container">
+            <div class="filter-group">
+                <label for="namespaceSelect">Namespace:</label>
+                <select id="namespaceSelect" onchange="filterPodsByNamespace()">
+                    <option value="">-- All Namespaces --</option>
+                </select>
+            </div>
+
+            <div class="filter-group pod-selector">
+                <label for="podSelect">Select Pod:</label>
+                <select id="podSelect" onchange="updateCharts()">
+                    <option value="">-- Loading Pods --</option>
+                </select>
+            </div>
+
+            <div class="filter-group date-filter">
+                <div class="date-input-group">
+                    <label for="timeRange">Time Range:</label>
+                    <select id="timeRange" onchange="updateCharts()">
+                        <option value="all" selected>All Time</option>
+                        <option value="1">Last 1 Hour</option>
+                        <option value="3">Last 3 Hours</option>
+                        <option value="6">Last 6 Hours</option>
+                        <option value="12">Last 12 Hours</option>
+                        <option value="24">Last 24 Hours</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="pod-info" id="podInfo"></div>
+        </div>
+    </div>
+
+    <div class="charts-grid">
+        <div class="chart-container">
+            <h2 class="chart-title">CPU Usage (%)</h2>
+            <div class="chart-wrapper">
+                <canvas id="cpuChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <h2 class="chart-title">Memory Usage (MB)</h2>
+            <div class="chart-wrapper">
+                <canvas id="memoryChart"></canvas>
+            </div>
+        </div>
+        <div class="chart-container">
+            <h2 class="chart-title">Storage Usage (MB)</h2>
+            <div class="chart-wrapper">
+                <canvas id="storageChart"></canvas>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script th:inline="javascript">
+    let allData = null;
+    let allPods = []; // Store all pods with namespace info
+    let charts = {
+        cpu: null,
+        memory: null,
+        storage: null
+    };
+
+    const chartConfig = {
+        type: 'line',
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false,
+            },
+            plugins: {
+                legend: {
+                    position: 'top',
+                    labels: {
+                        font: {
+                            size: 12,
+                            weight: '600'
+                        },
+                        padding: 15
+                    }
+                },
+                tooltip: {
+                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
+                    padding: 12,
+                    titleFont: {
+                        size: 14,
+                        weight: 'bold'
+                    },
+                    bodyFont: {
+                        size: 13
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    title: {
+                        display: true,
+                        text: 'Minutes',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                },
+                y: {
+                    beginAtZero: true,
+                    title: {
+                        display: true,
+                        text: 'Value',
+                        font: {
+                            size: 14,
+                            weight: 'bold'
+                        }
+                    },
+                    ticks: {
+                        font: {
+                            size: 12
+                        }
+                    },
+                    grid: {
+                        color: 'rgba(0, 0, 0, 0.05)'
+                    }
+                }
+            }
+        }
+    };
+
+    async function loadData() {
+        try {
+            allData = /*[[${predictionData}]]*/ {};
+            populateNamespaceSelector();
+            populatePodSelector();
+            updateCharts();
+        } catch (error) {
+            console.error('Error loading data:', error);
+            alert('Failed to load prediction data');
+        }
+    }
+
+    function populateNamespaceSelector() {
+        const namespaceSelect = document.getElementById('namespaceSelect');
+        const namespaces = new Set();
+
+        Object.values(allData.minutePodPredictionCoordinatesMap).forEach(minuteData => {
+            minuteData.forEach(pod => {
+                namespaces.add(pod.namespace);
+                allPods.push({
+                    namespace: pod.namespace,
+                    podName: pod.podName
+                });
+            });
+        });
+
+        // Remove duplicates from allPods
+        allPods = Array.from(new Set(allPods.map(p => JSON.stringify(p)))).map(p => JSON.parse(p));
+
+        namespaceSelect.innerHTML = '<option value="">-- All Namespaces --</option>';
+        Array.from(namespaces).sort().forEach(namespace => {
+            const option = document.createElement('option');
+            option.value = namespace;
+            option.textContent = namespace;
+            namespaceSelect.appendChild(option);
+        });
+    }
+
+    function populatePodSelector(selectedNamespace = '') {
+        const select = document.getElementById('podSelect');
+        const pods = new Set();
+
+        Object.values(allData.minutePodPredictionCoordinatesMap).forEach(minuteData => {
+            minuteData.forEach(pod => {
+                if (!selectedNamespace || pod.namespace === selectedNamespace) {
+                    pods.add(pod.podName);
+                }
+            });
+        });
+
+        select.innerHTML = '';
+        const sortedPods = Array.from(pods).sort();
+
+        if (sortedPods.length === 0) {
+            select.innerHTML = '<option value="">-- No Pods Available --</option>';
+            return;
+        }
+
+        sortedPods.forEach(podName => {
+            const option = document.createElement('option');
+            option.value = podName;
+            option.textContent = podName;
+            select.appendChild(option);
+        });
+
+        select.selectedIndex = 0;
+    }
+
+    function filterPodsByNamespace() {
+        const selectedNamespace = document.getElementById('namespaceSelect').value;
+        populatePodSelector(selectedNamespace);
+        updateCharts();
+    }
+
+    function updateCharts() {
+
+        const selectedPod = document.getElementById('podSelect').value;
+        if (!selectedPod || !allData) return;
+
+        const timeRange = document.getElementById('timeRange').value;
+
+        const minutes = [];
+        const cpuActual = [];
+        const cpuPrediction = [];
+        const memoryActual = [];
+        const memoryPrediction = [];
+        const storageActual = [];
+        const storagePrediction = [];
+
+        let namespace = '';
+
+        const sortedMinutes = Object.keys(allData.minutePodPredictionCoordinatesMap).sort((a, b) => a - b);
+
+        // Calculate cutoff time based on selected range
+        let cutoffTime = null;
+        if (timeRange !== 'all') {
+            const hoursAgo = Number.parseInt(timeRange);
+            cutoffTime = new Date();
+            cutoffTime.setHours(cutoffTime.getHours() - hoursAgo);
+        }
+
+        sortedMinutes.forEach(minute => {
+            const pods = allData.minutePodPredictionCoordinatesMap[minute];
+            const podData = pods.find(p => p.podName === selectedPod);
+
+            if (podData) {
+                // Apply time range filter if set
+                if (cutoffTime) {
+                    const minuteDate = new Date();
+                    minuteDate.setMinutes(minuteDate.getMinutes() - (sortedMinutes[sortedMinutes.length - 1] - minute));
+
+                    if (minuteDate < cutoffTime) return;
+                }
+
+                minutes.push(minute);
+                cpuActual.push(podData.cpuActual.toFixed(2));
+                cpuPrediction.push(podData.cpuPrediction.toFixed(2));
+                memoryActual.push(podData.memoryActual.toFixed(2));
+                memoryPrediction.push(podData.memoryPrediction.toFixed(2));
+                storageActual.push(podData.storageActual.toFixed(2));
+                storagePrediction.push(podData.storagePrediction.toFixed(2));
+                namespace = podData.namespace;
+            }
+        });
+
+        const timeRangeText = timeRange === 'all' ? 'All Time' : `Last ${timeRange} Hour${timeRange > 1 ? 's' : ''}`;
+        document.getElementById('podInfo').textContent = `Namespace: ${namespace} | ${timeRangeText} | Data Points: ${minutes.length}`;
+
+        updateChart('cpuChart', 'cpu', minutes, cpuActual, cpuPrediction, 'CPU (%)');
+        updateChart('memoryChart', 'memory', minutes, memoryActual, memoryPrediction, 'Memory (MB)');
+        updateChart('storageChart', 'storage', minutes, storageActual, storagePrediction, 'Storage (MB)');
+    }
+
+    function updateChart(canvasId, chartKey, labels, actualData, predictionData, label) {
+        const ctx = document.getElementById(canvasId).getContext('2d');
+
+        if (charts[chartKey]) {
+            charts[chartKey].destroy();
+        }
+
+        charts[chartKey] = new Chart(ctx, {
+            ...chartConfig,
+            data: {
+                labels: labels,
+                datasets: [
+                    {
+                        label: `Actual ${label}`,
+                        data: actualData,
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 2,
+                        pointHoverRadius: 9,
+                        fill: false
+                    },
+                    {
+                        label: `Predicted ${label}`,
+                        data: predictionData,
+                        borderColor: 'rgb(255, 99, 132)',
+                        backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.1,
+                        pointRadius: 2,
+                        pointHoverRadius: 9,
+                        // borderDash: [10, 5],
+                        fill: false
+                    }
+                ]
+            }
+        });
+    }
+
+    loadData();
+</script>
+</body>
+</html>

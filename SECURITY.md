@@ -1,12 +1,11 @@
 # Security Policy
 
-## Reporting a vulnerability
-Please **do not open a public issue**. Email **contribution@nubons.com** with a
-description, impact, and reproduction steps. We aim to acknowledge within 5
-working days.
+## Reporting a Vulnerability
 
-## No secrets in the repository
-This repository must never contain secrets, API tokens, passwords, private keys,
-`.env` files, or deployment credentials. Configuration is supplied at runtime
-via environment variables. If you spot a committed secret, report it privately
-using the address above so it can be rotated and purged.
+Please **do not open a public issue** to report vulnerabilities. Email **contribution@nubons.com** with a detailed description, impact assessment, and reproduction steps. We aim to acknowledge reports within 5 business days.
+
+## Zero Secrets Policy
+
+This repository must never contain secrets, API tokens, passwords, private keys, `.env` files, or internal infrastructure IP addresses. Configuration is supplied at runtime via environment variables.
+
+If you spot a committed secret, report it privately using the address above so it can be rotated and purged from version history.
